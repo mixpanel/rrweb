@@ -146,10 +146,38 @@ export default function (
       //   },
       // },
     },
+
+    resolve: {
+      alias: {
+        // Map @rrweb scoped packages to @mixpanel equivalents
+        '@rrweb/types': '@mixpanel/rrweb-types',
+        '@rrweb/utils': '@mixpanel/rrweb-utils',
+        '@rrweb/packer': '@mixpanel/rrweb-packer',
+        '@rrweb/record': '@mixpanel/rrweb-record',
+        '@rrweb/replay': '@mixpanel/rrweb-replay',
+        '@rrweb/all': '@mixpanel/rrweb-all',
+        '@rrweb/rrweb-plugin-console-record': '@mixpanel/rrweb-plugin-console-record',
+        '@rrweb/rrweb-plugin-console-replay': '@mixpanel/rrweb-plugin-console-replay',
+        '@rrweb/rrweb-plugin-sequential-id-record': '@mixpanel/rrweb-plugin-sequential-id-record',
+        '@rrweb/rrweb-plugin-sequential-id-replay': '@mixpanel/rrweb-plugin-sequential-id-replay',
+        '@rrweb/rrweb-plugin-canvas-webrtc-record': '@mixpanel/rrweb-plugin-canvas-webrtc-record',
+        '@rrweb/rrweb-plugin-canvas-webrtc-replay': '@mixpanel/rrweb-plugin-canvas-webrtc-replay',
+        'rrweb': '@mixpanel/rrweb',
+        'rrweb-snapshot': '@mixpanel/rrweb-snapshot',
+        'rrdom': '@mixpanel/rrdom',
+        'rrdom-nodejs': '@mixpanel/rrdom-nodejs',
+        'rrweb-player': '@mixpanel/rrweb-player',
+        'rrvideo': '@mixpanel/rrvideo',
+      },
+    },
+
     plugins: [
       dts({
         insertTypesEntry: true,
         rollupTypes: true,
+        aliasesExclude: [
+          '@mixpanel/rrweb',
+        ],
         afterBuild: (emittedFiles: Map<string, string>) => {
           // To pass publint (`npm x publint@latest`) and ensure the
           // package is supported by all consumers, we must export types that are
