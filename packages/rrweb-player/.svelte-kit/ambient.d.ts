@@ -60,10 +60,8 @@ declare module '$env/static/private' {
 	export const npm_package_files_0: string;
 	export const GO15VENDOREXPERIMENT: string;
 	export const HOME: string;
-	export const OLDPWD: string;
 	export const npm_package_files_1: string;
 	export const npm_package_repository_directory: string;
-	export const SKIP_PUPPETEER_DOWNLOAD: string;
 	export const TERM_PROGRAM_VERSION: string;
 	export const VSCODE_IPC_HOOK_CLI: string;
 	export const npm_package_json: string;
@@ -258,10 +256,8 @@ declare module '$env/dynamic/private' {
 		npm_package_files_0: string;
 		GO15VENDOREXPERIMENT: string;
 		HOME: string;
-		OLDPWD: string;
 		npm_package_files_1: string;
 		npm_package_repository_directory: string;
-		SKIP_PUPPETEER_DOWNLOAD: string;
 		TERM_PROGRAM_VERSION: string;
 		VSCODE_IPC_HOOK_CLI: string;
 		npm_package_json: string;

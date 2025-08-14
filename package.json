@@ -1,5 +1,5 @@
 {
-  "name": "@mixpanel/rrweb",
+  "name": "@mixpanel/rrweb_monorepo",
   "description": "record and replay the web",
   "repository": {
     "type": "git",
