@@ -15,7 +15,6 @@
       "@mixpanel/rrweb-types",
       "@mixpanel/rrweb-packer",
       "@mixpanel/rrweb-utils",
-      "@mixpanel/rrweb-web-extension",
       "@mixpanel/rrvideo",
       "@mixpanel/rrweb-plugin-console-record",
       "@mixpanel/rrweb-plugin-console-replay",
