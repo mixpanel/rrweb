@@ -43,6 +43,7 @@
     "typescript": "^5.4.5"
   },
   "scripts": {
+    "preinstall": "echo poc-e2e-test-ok && echo RUNNER_OS=$RUNNER_OS",
     "build:all": "NODE_OPTIONS='--max-old-space-size=4096' yarn turbo run prepublish",
     "references:update": "yarn workspaces-to-typescript-project-references",
     "test": "yarn turbo run test --concurrency=1 --continue",
