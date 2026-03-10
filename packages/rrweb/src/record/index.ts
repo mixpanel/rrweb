@@ -69,6 +69,7 @@ const mirror = createMirror();
 function record<T = eventWithTime>(
   options: recordOptions<T> = {},
 ): listenerHandler | undefined {
+  console.log('[rrweb] patched build v13');
   const {
     emit,
     checkoutEveryNms,
@@ -612,6 +613,12 @@ function record<T = eventWithTime>(
       takeFullSnapshot();
       handlers.push(observe(document));
       recording = true;
+
+      // Diagnostic: periodic mirror size report
+      const diagInterval = setInterval(() => {
+        if (!recording) { clearInterval(diagInterval); return; }
+        console.log(`[rrweb-diag] periodic: idNodeMap.size=${mirror.getMapSize()}`);
+      }, 10000);
     };
     if (
       document.readyState === 'interactive' ||

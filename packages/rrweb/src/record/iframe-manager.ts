@@ -23,6 +23,7 @@ export class IframeManager {
     new WeakMap();
   private iframeObserverCleanupMap: WeakMap<HTMLIFrameElement, () => void> =
     new WeakMap();
+  // private attachedIframes: Set<HTMLIFrameElement> = new Set();
   private mirror: Mirror;
   private mutationCb: mutationCallBack;
   private wrappedEmit: (e: eventWithoutTime, isCheckout?: boolean) => void;
@@ -79,24 +80,55 @@ export class IframeManager {
 
   public removeIframe(iframeEl: HTMLIFrameElement): void {
     const storedDoc = this.iframeContentDocumentMap.get(iframeEl);
+    const sizeBefore = this.mirror.getMapSize();
+    console.log(`[rrweb-diag] removeIframe: storedDoc=${!!storedDoc}, idNodeMap.size=${sizeBefore}`);
 
     if (storedDoc) {
+      const childCount = storedDoc.childNodes ? storedDoc.childNodes.length : -1;
+      console.log(`[rrweb-diag] removeIframe: storedDoc.childNodes.length=${childCount}`);
       this.stylesheetManager.cleanupStylesheetsForRemovedNode(storedDoc);
       this.mirror.removeNodeFromMap(storedDoc, true);
+      console.log(`[rrweb-diag] removeIframe: after cleanup idNodeMap.size=${this.mirror.getMapSize()} (removed ${sizeBefore - this.mirror.getMapSize()})`);
     }
 
     this.iframes.delete(iframeEl);
     this.iframeContentDocumentMap.delete(iframeEl);
+    // this.attachedIframes.delete(iframeEl);
 
     const observerCleanup = this.iframeObserverCleanupMap.get(iframeEl);
     if (observerCleanup) {
       try {
         observerCleanup();
       } catch (e) {
-        // Ignore errors during cleanup
+        console.warn('[rrweb-v9] observer cleanup error:', e);
       }
       this.iframeObserverCleanupMap.delete(iframeEl);
     }
+  }
+
+  public cleanupOrphanedIframes(): void {
+    // if (this.attachedIframes.size === 0) return;
+    // const stale: HTMLIFrameElement[] = [];
+    // for (const iframeEl of this.attachedIframes) {
+    //   if (!iframeEl.isConnected) {
+    //     stale.push(iframeEl);
+    //     continue;
+    //   }
+    //   // Check if iframe is hidden (in a stale container kept in DOM but not visible)
+    //   try {
+    //     const rect = iframeEl.getBoundingClientRect();
+    //     if (rect.width === 0 && rect.height === 0) {
+    //       stale.push(iframeEl);
+    //     }
+    //   } catch (e) {
+    //     // If we can't check, leave it alone
+    //   }
+    // }
+    // if (stale.length > 0) {
+    //   for (const iframeEl of stale) {
+    //     this.removeIframe(iframeEl);
+    //   }
+    // }
   }
 
   public addLoadListener(cb: (iframeEl: HTMLIFrameElement) => unknown) {
@@ -107,6 +139,36 @@ export class IframeManager {
     iframeEl: HTMLIFrameElement,
     childSn: serializedNodeWithId,
   ) {
+    // Clean up iframes that are no longer connected to the DOM
+    // This handles the case where iframe elements are destroyed and recreated
+    // (e.g., SPA frameworks that replace iframe elements on navigation)
+    this.cleanupOrphanedIframes();
+
+    // Clean up old contentDocument before attaching new one (e.g. iframe src change)
+    // TODO do i need this???, dont think so
+    // const oldDoc = this.iframeContentDocumentMap.get(iframeEl);
+    // if (oldDoc && oldDoc !== iframeEl.contentDocument) {
+    //   const oldChildCount = oldDoc.childNodes ? oldDoc.childNodes.length : -1;
+    //   const sizeBefore = this.mirror.getMapSize();
+    //   console.log(`[rrweb-diag] attachIframe: replacing old doc, oldDoc.childNodes.length=${oldChildCount}, idNodeMap.size=${sizeBefore}`);
+
+    //   this.stylesheetManager.cleanupStylesheetsForRemovedNode(oldDoc);
+    //   this.mirror.removeNodeFromMap(oldDoc, true);
+
+    //   console.log(`[rrweb-diag] attachIframe: after old doc cleanup idNodeMap.size=${this.mirror.getMapSize()} (removed ${sizeBefore - this.mirror.getMapSize()})`);
+
+    //   // Disconnect old observer
+    //   const oldCleanup = this.iframeObserverCleanupMap.get(iframeEl);
+    //   if (oldCleanup) {
+    //     try {
+    //       oldCleanup();
+    //     } catch (e) {
+    //       // Ignore errors during cleanup
+    //     }
+    //     this.iframeObserverCleanupMap.delete(iframeEl);
+    //   }
+    // }
+
     this.mutationCb({
       adds: [
         {
@@ -124,6 +186,7 @@ export class IframeManager {
     if (iframeEl.contentDocument) {
       this.iframeContentDocumentMap.set(iframeEl, iframeEl.contentDocument);
     }
+    // this.attachedIframes.add(iframeEl);
 
     // Receive messages (events) coming from cross-origin iframes that are nested in this same-origin iframe.
     if (this.recordCrossOriginIframes)

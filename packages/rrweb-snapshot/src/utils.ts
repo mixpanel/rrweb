@@ -2,7 +2,7 @@ import type {
   idNodeMap,
   MaskInputFn,
   MaskInputOptions,
-  nodeMetaMap,
+  dvalotiaNodeMetaMap,
 } from './types';
 
 import { NodeType } from '@rrweb/types';
@@ -179,7 +179,7 @@ export function isCSSStyleRule(rule: CSSRule): rule is CSSStyleRule {
 
 export class Mirror implements IMirror<Node> {
   private idNodeMap: idNodeMap = new Map();
-  private nodeMetaMap: nodeMetaMap = new WeakMap();
+  private dvalotiaNodeMetaMap: dvalotiaNodeMetaMap = new WeakMap();
 
   getId(n: Node | undefined | null): number {
     if (!n) return -1;
@@ -199,48 +199,89 @@ export class Mirror implements IMirror<Node> {
   }
 
   getMeta(n: Node): serializedNodeWithId | null {
-    return this.nodeMetaMap.get(n) || null;
+    return this.dvalotiaNodeMetaMap.get(n) || null;
   }
 
   // removes the node from idNodeMap
-  // if permanent is true, also removes from nodeMetaMap
+  // if permanent is true, also removes from dvalotiaNodeMetaMap
   removeNodeFromMap(n: Node, permanent = false) {
     const id = this.getId(n);
+    const meta = this.dvalotiaNodeMetaMap.get(n);
+    // Diagnostic: log removal of nodes with _cssText
+    if (meta && meta.type === 2 && (meta as any).attributes?._cssText) {
+      console.log(`[rrweb-diag] mirror.remove: id=${id} tag=${(meta as any).tagName} _cssText=${((meta as any).attributes._cssText as string).length} chars, permanent=${permanent}`);
+    }
     this.idNodeMap.delete(id);
-    if (permanent) this.nodeMetaMap.delete(n);
+    if (permanent) this.dvalotiaNodeMetaMap.delete(n);
+
+    // Diagnostic: log childNodes count for Document nodes (iframe content)
+    if (n.nodeType === 9) { // DOCUMENT_NODE
+      const childCount = n.childNodes ? n.childNodes.length : -1;
+      console.log(`[rrweb-diag] removeNodeFromMap on Document node: id=${id} childNodes.length=${childCount}, permanent=${permanent}`);
+    }
 
     if (n.childNodes) {
       n.childNodes.forEach((childNode) =>
         this.removeNodeFromMap(childNode as unknown as Node, permanent),
       );
     }
+    // TODO add this back
+    // Traverse into iframe content documents
+    // if (n.nodeName === 'IFRAME') {
+    //   try {
+    //     console.log(`[rrweb] removing iframe content document from mirror`);
+    //     const iframeDoc = (n as HTMLIFrameElement).contentDocument;
+    //     if (iframeDoc) {
+    //       this.removeNodeFromMap(iframeDoc as unknown as Node, permanent);
+    //     }
+    //   } catch (e) {
+    //     console.error(`[rrweb] error accessing iframe content document during mirror cleanup:`, e);
+    //     // Ignore cross-origin access errors
+    //   }
+    // }
+    // // Traverse into shadow roots
+    // if ((n as Element).shadowRoot) {
+    //   this.removeNodeFromMap(
+    //     (n as Element).shadowRoot as unknown as Node,
+    //     permanent,
+    //   );
+    // }
   }
   has(id: number): boolean {
     return this.idNodeMap.has(id);
   }
 
   hasNode(node: Node): boolean {
-    return this.nodeMetaMap.has(node);
+    return this.dvalotiaNodeMetaMap.has(node);
   }
 
   add(n: Node, meta: serializedNodeWithId) {
     const id = meta.id;
     this.idNodeMap.set(id, n);
-    this.nodeMetaMap.set(n, meta);
+    this.dvalotiaNodeMetaMap.set(n, meta);
+    // Diagnostic: track _cssText additions
+    if (meta.type === 2 && (meta as any).attributes?._cssText) {
+      const cssLen = ((meta as any).attributes._cssText as string).length;
+      console.log(`[rrweb-diag] mirror.add: id=${id} tag=${(meta as any).tagName} _cssText=${cssLen} chars, idNodeMap.size=${this.idNodeMap.size}`);
+    }
   }
 
   replace(id: number, n: Node) {
     const oldNode = this.getNode(id);
     if (oldNode) {
-      const meta = this.nodeMetaMap.get(oldNode);
-      if (meta) this.nodeMetaMap.set(n, meta);
+      const meta = this.dvalotiaNodeMetaMap.get(oldNode);
+      if (meta) this.dvalotiaNodeMetaMap.set(n, meta);
     }
     this.idNodeMap.set(id, n);
   }
 
+  getMapSize(): number {
+    return this.idNodeMap.size;
+  }
+
   reset() {
     this.idNodeMap = new Map();
-    this.nodeMetaMap = new WeakMap();
+    this.dvalotiaNodeMetaMap = new WeakMap();
   }
 }
 

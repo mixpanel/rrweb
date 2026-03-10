@@ -366,20 +366,20 @@ export default class MutationBuffer {
       }
     };
 
+    const sizeBeforeCleanup = this.mirror.getMapSize();
     while (this.mapRemoves.length) {
       const removedNode = this.mapRemoves.shift()!;
+      console.log(`[rrweb-diag] mapRemoves: top-level node=${removedNode.nodeName}, childNodes.length=${removedNode.childNodes?.length ?? -1}`);
+      this.cleanupRemovedNode(removedNode, 0);
+      this.mirror.removeNodeFromMap(removedNode, true);
+    }
 
-      if (removedNode.nodeName === 'IFRAME') {
-        try {
-          this.iframeManager.removeIframe(removedNode as HTMLIFrameElement);
-        } catch (e) {
-          // Ignore errors during iframe cleanup
-        }
-      } else {
-        this.stylesheetManager.cleanupStylesheetsForRemovedNode(removedNode);
-      }
+    // Clean up any iframe contentDocuments whose iframe elements were removed
+    // from the DOM but weren't found by cleanupRemovedNode's subtree walk
+    // this.iframeManager.cleanupOrphanedIframes();
 
-      this.mirror.removeNodeFromMap(removedNode);
+    if (sizeBeforeCleanup !== this.mirror.getMapSize()) {
+      console.log(`[rrweb-diag] mutation flush: idNodeMap ${sizeBeforeCleanup} -> ${this.mirror.getMapSize()} (removed ${sizeBeforeCleanup - this.mirror.getMapSize()} nodes)`);
     }
 
     for (const n of this.movedSet) {
@@ -816,6 +816,27 @@ export default class MutationBuffer {
         });
       }
     }
+  };
+
+  private cleanupRemovedNode = (node: Node, depth = 0) => {
+    if (node.nodeName === 'IFRAME') {
+      console.log(`[rrweb-diag] cleanupRemovedNode found IFRAME at depth=${depth}, isConnected=${node.isConnected}`);
+      try {
+        this.iframeManager.removeIframe(node as HTMLIFrameElement);
+      } catch (e) {
+        // Ignore errors during iframe cleanup
+      }
+    } else {
+      try {
+        this.stylesheetManager.cleanupStylesheetsForRemovedNode(node);
+      } catch (e) {
+        // Ignore errors during stylesheet cleanup
+      }
+    }
+
+    node.childNodes.forEach((child) => {
+      this.cleanupRemovedNode(child, depth + 1);
+    });
   };
 }
 

@@ -122,6 +122,19 @@ export class StylesheetManager {
           this.cleanupStylesheetsForRemovedNode(child);
         });
       }
+
+      // Traverse into shadow roots
+      // if ((removedNode as Element).shadowRoot) {
+      //   const shadowRoot = (removedNode as Element).shadowRoot;
+      //   if (shadowRoot?.adoptedStyleSheets) {
+      //     for (const sheet of shadowRoot.adoptedStyleSheets) {
+      //       this.styleMirror.remove(sheet);
+      //     }
+      //   }
+      //   this.cleanupStylesheetsForRemovedNode(
+      //     shadowRoot as unknown as Node,
+      //   );
+      // }
     } catch (e) {
       // Ignore errors
     }
