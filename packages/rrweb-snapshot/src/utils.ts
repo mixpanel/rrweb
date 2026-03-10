@@ -209,15 +209,24 @@ export class Mirror implements IMirror<Node> {
     const meta = this.dvalotiaNodeMetaMap.get(n);
     // Diagnostic: log removal of nodes with _cssText
     if (meta && meta.type === 2 && (meta as any).attributes?._cssText) {
-      console.log(`[rrweb-diag] mirror.remove: id=${id} tag=${(meta as any).tagName} _cssText=${((meta as any).attributes._cssText as string).length} chars, permanent=${permanent}`);
+      console.log(
+        `[rrweb-diag] mirror.remove: id=${id} tag=${
+          (meta as any).tagName
+        } _cssText=${
+          ((meta as any).attributes._cssText as string).length
+        } chars, permanent=${permanent}`,
+      );
     }
     this.idNodeMap.delete(id);
     if (permanent) this.dvalotiaNodeMetaMap.delete(n);
 
     // Diagnostic: log childNodes count for Document nodes (iframe content)
-    if (n.nodeType === 9) { // DOCUMENT_NODE
+    if (n.nodeType === 9) {
+      // DOCUMENT_NODE
       const childCount = n.childNodes ? n.childNodes.length : -1;
-      console.log(`[rrweb-diag] removeNodeFromMap on Document node: id=${id} childNodes.length=${childCount}, permanent=${permanent}`);
+      console.log(
+        `[rrweb-diag] removeNodeFromMap on Document node: id=${id} childNodes.length=${childCount}, permanent=${permanent}`,
+      );
     }
 
     if (n.childNodes) {
@@ -262,7 +271,11 @@ export class Mirror implements IMirror<Node> {
     // Diagnostic: track _cssText additions
     if (meta.type === 2 && (meta as any).attributes?._cssText) {
       const cssLen = ((meta as any).attributes._cssText as string).length;
-      console.log(`[rrweb-diag] mirror.add: id=${id} tag=${(meta as any).tagName} _cssText=${cssLen} chars, idNodeMap.size=${this.idNodeMap.size}`);
+      console.log(
+        `[rrweb-diag] mirror.add: id=${id} tag=${
+          (meta as any).tagName
+        } _cssText=${cssLen} chars, idNodeMap.size=${this.idNodeMap.size}`,
+      );
     }
   }
 

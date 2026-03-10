@@ -616,8 +616,13 @@ function record<T = eventWithTime>(
 
       // Diagnostic: periodic mirror size report
       const diagInterval = setInterval(() => {
-        if (!recording) { clearInterval(diagInterval); return; }
-        console.log(`[rrweb-diag] periodic: idNodeMap.size=${mirror.getMapSize()}`);
+        if (!recording) {
+          clearInterval(diagInterval);
+          return;
+        }
+        console.log(
+          `[rrweb-diag] periodic: idNodeMap.size=${mirror.getMapSize()}`,
+        );
       }, 10000);
     };
     if (

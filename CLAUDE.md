@@ -3,6 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Important Rules
+
 - **Never post comments, replies, or reviews to GitHub (via `gh` CLI or otherwise) without explicit user approval.** Always draft the comment text and wait for confirmation before posting.
 
 ## Overview
@@ -12,11 +13,13 @@ This is Mixpanel's fork of rrweb (record and replay the web), published under th
 ## Development Commands
 
 ### Build and Dev
+
 - `yarn install` - Install dependencies (use yarn, not npm)
 - `yarn build:all` - Build all packages (runs `turbo run prepublish` with 4GB heap)
 - `yarn dev` - Start development mode with auto-rebuilding
 
 ### Testing
+
 - `yarn test` - Run all tests across all packages
 - Run a single package's tests: `cd packages/rrweb && yarn test`
 - Run a single test file: `cd packages/rrweb && yarn vitest run test/record.test.ts`
@@ -26,6 +29,7 @@ This is Mixpanel's fork of rrweb (record and replay the web), published under th
 - Benchmarks: `cd packages/rrweb && yarn benchmark`
 
 ### Code Quality
+
 - `yarn check-types` - TypeScript type checking across all packages
 - `yarn lint` - ESLint + markdownlint
 - `yarn format` - Prettier on all .ts and .md files
@@ -40,6 +44,7 @@ The core flow is: **Snapshot → Record → Replay**
 1. **Snapshot** (`packages/rrweb-snapshot`): Serializes the full DOM tree into a JSON representation (`serializedNodeWithId`). Each DOM node gets a unique numeric ID. The `rebuild` module does the reverse — reconstructs DOM from serialized data.
 
 2. **Record** (`packages/rrweb/src/record/`): After an initial full snapshot, observes incremental changes via `MutationObserver` and event listeners. The entry point is `record()` in `index.ts`, which coordinates several managers:
+
    - `observer.ts` — Sets up all DOM observers (mutations, mouse, scroll, input, resize, media, stylesheets, fonts, canvas)
    - `mutation.ts` (`MutationBuffer`) — Processes `MutationObserver` records into serializable mutation data, using a double-linked list for ordering
    - `iframe-manager.ts` — Handles same-origin and cross-origin iframe recording
@@ -54,6 +59,7 @@ The core flow is: **Snapshot → Record → Replay**
 The `Mirror` class (`packages/rrweb-snapshot/src/utils.ts`) is central to the architecture. It maintains a bidirectional mapping between DOM nodes and their numeric IDs (`idNodeMap` + `nodeMetaMap`). Both recording and replay maintain their own Mirror instance to look up nodes by ID and vice versa.
 
 ### Key Packages
+
 - **packages/rrweb** — Main recording (`src/record/`) and replay (`src/replay/`) logic
 - **packages/rrweb-snapshot** — DOM serialization (`snapshot.ts`) and rebuilding (`rebuild.ts`)
 - **packages/types** — Shared TypeScript types: `EventType`, `IncrementalSource`, event/mutation types
@@ -65,6 +71,7 @@ The `Mirror` class (`packages/rrweb-snapshot/src/utils.ts`) is central to the ar
 ### Event Types
 
 Events are typed via `EventType` enum in `packages/types/src/index.ts`:
+
 - `FullSnapshot` — Complete serialized DOM tree
 - `IncrementalSnapshot` — Mutations, mouse moves, scroll, input, canvas, etc. (discriminated by `IncrementalSource`)
 - `Meta` — Page URL and viewport dimensions
@@ -81,6 +88,7 @@ All events are timestamped as `eventWithTime`.
 - **Vitest** is the test runner with a workspace config (`vitest.workspace.ts`)
 
 ## Code Style
+
 - Prettier for formatting, ESLint for linting
 - TypeScript/ES6+ conventions: `const`/`let`, arrow functions, template literals
 - PascalCase for classes, camelCase for functions/variables, kebab-case for file names

@@ -81,14 +81,24 @@ export class IframeManager {
   public removeIframe(iframeEl: HTMLIFrameElement): void {
     const storedDoc = this.iframeContentDocumentMap.get(iframeEl);
     const sizeBefore = this.mirror.getMapSize();
-    console.log(`[rrweb-diag] removeIframe: storedDoc=${!!storedDoc}, idNodeMap.size=${sizeBefore}`);
+    console.log(
+      `[rrweb-diag] removeIframe: storedDoc=${!!storedDoc}, idNodeMap.size=${sizeBefore}`,
+    );
 
     if (storedDoc) {
-      const childCount = storedDoc.childNodes ? storedDoc.childNodes.length : -1;
-      console.log(`[rrweb-diag] removeIframe: storedDoc.childNodes.length=${childCount}`);
+      const childCount = storedDoc.childNodes
+        ? storedDoc.childNodes.length
+        : -1;
+      console.log(
+        `[rrweb-diag] removeIframe: storedDoc.childNodes.length=${childCount}`,
+      );
       this.stylesheetManager.cleanupStylesheetsForRemovedNode(storedDoc);
       this.mirror.removeNodeFromMap(storedDoc, true);
-      console.log(`[rrweb-diag] removeIframe: after cleanup idNodeMap.size=${this.mirror.getMapSize()} (removed ${sizeBefore - this.mirror.getMapSize()})`);
+      console.log(
+        `[rrweb-diag] removeIframe: after cleanup idNodeMap.size=${this.mirror.getMapSize()} (removed ${
+          sizeBefore - this.mirror.getMapSize()
+        })`,
+      );
     }
 
     this.iframes.delete(iframeEl);

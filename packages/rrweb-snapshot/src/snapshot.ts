@@ -599,7 +599,11 @@ function serializeElementNode(
       cssText = stringifyStylesheet(stylesheet);
     }
     if (cssText) {
-      console.log(`[rrweb-diag] _cssText captured on <link>: ${cssText.length} chars, href=${(n as HTMLLinkElement).href}`);
+      console.log(
+        `[rrweb-diag] _cssText captured on <link>: ${
+          cssText.length
+        } chars, href=${(n as HTMLLinkElement).href}`,
+      );
       delete attributes.rel;
       delete attributes.href;
       attributes._cssText = cssText;
@@ -613,7 +617,9 @@ function serializeElementNode(
       if (n.childNodes.length > 1) {
         cssText = markCssSplits(cssText, n as HTMLStyleElement);
       }
-      console.log(`[rrweb-diag] _cssText captured on <style>: ${cssText.length} chars`);
+      console.log(
+        `[rrweb-diag] _cssText captured on <style>: ${cssText.length} chars`,
+      );
       attributes._cssText = cssText;
     }
   }

@@ -369,7 +369,11 @@ export default class MutationBuffer {
     const sizeBeforeCleanup = this.mirror.getMapSize();
     while (this.mapRemoves.length) {
       const removedNode = this.mapRemoves.shift()!;
-      console.log(`[rrweb-diag] mapRemoves: top-level node=${removedNode.nodeName}, childNodes.length=${removedNode.childNodes?.length ?? -1}`);
+      console.log(
+        `[rrweb-diag] mapRemoves: top-level node=${
+          removedNode.nodeName
+        }, childNodes.length=${removedNode.childNodes?.length ?? -1}`,
+      );
       this.cleanupRemovedNode(removedNode, 0);
       this.mirror.removeNodeFromMap(removedNode, true);
     }
@@ -379,7 +383,11 @@ export default class MutationBuffer {
     // this.iframeManager.cleanupOrphanedIframes();
 
     if (sizeBeforeCleanup !== this.mirror.getMapSize()) {
-      console.log(`[rrweb-diag] mutation flush: idNodeMap ${sizeBeforeCleanup} -> ${this.mirror.getMapSize()} (removed ${sizeBeforeCleanup - this.mirror.getMapSize()} nodes)`);
+      console.log(
+        `[rrweb-diag] mutation flush: idNodeMap ${sizeBeforeCleanup} -> ${this.mirror.getMapSize()} (removed ${
+          sizeBeforeCleanup - this.mirror.getMapSize()
+        } nodes)`,
+      );
     }
 
     for (const n of this.movedSet) {
@@ -820,7 +828,9 @@ export default class MutationBuffer {
 
   private cleanupRemovedNode = (node: Node, depth = 0) => {
     if (node.nodeName === 'IFRAME') {
-      console.log(`[rrweb-diag] cleanupRemovedNode found IFRAME at depth=${depth}, isConnected=${node.isConnected}`);
+      console.log(
+        `[rrweb-diag] cleanupRemovedNode found IFRAME at depth=${depth}, isConnected=${node.isConnected}`,
+      );
       try {
         this.iframeManager.removeIframe(node as HTMLIFrameElement);
       } catch (e) {
