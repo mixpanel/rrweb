@@ -638,6 +638,19 @@ function serializeElementNode(
       attributes.checked = checked;
     }
   }
+  if (
+    (tagName === 'input' || tagName === 'textarea') &&
+    attributes.placeholder
+  ) {
+    attributes.placeholder = maskInputValue({
+      element: n,
+      type: getInputType(n),
+      tagName,
+      value: attributes.placeholder as string,
+      maskInputOptions,
+      maskInputFn,
+    });
+  }
   if (tagName === 'option') {
     if ((n as HTMLOptionElement).selected && !maskInputOptions['select']) {
       attributes.selected = true;
@@ -1283,6 +1296,7 @@ function snapshot(
           textarea: true,
           select: true,
           password: true,
+          hidden: true,
         }
       : maskAllInputs === false
       ? {
