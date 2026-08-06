@@ -1,6 +1,6 @@
 {
   "name": "@mixpanel/rrweb-snapshot",
-  "version": "2.0.0-alpha.18.5",
+  "version": "2.0.0-alpha.18.6",
   "description": "rrweb's component to take a snapshot of DOM, aka DOM serializer",
   "scripts": {
     "prepare": "npm run prepack",

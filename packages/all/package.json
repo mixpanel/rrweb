@@ -1,6 +1,6 @@
 {
   "name": "@mixpanel/rrweb-all",
-  "version": "2.0.0-alpha.18.5",
+  "version": "2.0.0-alpha.18.6",
   "publishConfig": {
     "access": "public"
   },
