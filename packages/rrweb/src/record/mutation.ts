@@ -5,6 +5,9 @@ import {
   ignoreAttribute,
   isShadowRoot,
   needMaskingText,
+  elementMatchesTextMask,
+  isMaskedTextAttribute,
+  maskTextValue,
   maskInputValue,
   Mirror,
   isNativeShadowDom,
@@ -604,6 +607,18 @@ export default class MutationBuffer {
           value === m.oldValue
         ) {
           return;
+        }
+        if (
+          value &&
+          isMaskedTextAttribute(target.tagName, attributeName) &&
+          elementMatchesTextMask(
+            target,
+            this.maskTextClass,
+            this.maskTextSelector,
+            true,
+          )
+        ) {
+          value = maskTextValue(value, target, this.maskTextFn);
         }
 
         let item = this.attributeMap.get(m.target);

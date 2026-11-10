@@ -23,6 +23,8 @@ import {
   isElement,
   isShadowRoot,
   maskInputValue,
+  isMaskedTextAttribute,
+  maskTextValue,
   isNativeShadowDom,
   stringifyStylesheet,
   getInputType,
@@ -264,26 +266,17 @@ export function classMatchesRegex(
   return classMatchesRegex(dom.parentNode(node), regex, checkAncestors);
 }
 
-export function needMaskingText(
-  node: Node,
+/**
+ * Whether an element matches maskTextClass / maskTextSelector. Unlike
+ * needMaskingText, this does not skip leaf elements, so it can be used for
+ * attributes of elements without children (e.g. `<img alt>`).
+ */
+export function elementMatchesTextMask(
+  el: Element,
   maskTextClass: string | RegExp,
   maskTextSelector: string | null,
   checkAncestors: boolean,
 ): boolean {
-  let el: Element;
-  if (isElement(node)) {
-    el = node;
-    if (!dom.childNodes(el).length) {
-      // optimisation: we can avoid any of the below checks on leaf elements
-      // as masking is applied to child text nodes only
-      return false;
-    }
-  } else if (dom.parentElement(node) === null) {
-    // should warn? maybe a text node isn't attached to a parent node yet?
-    return false;
-  } else {
-    el = dom.parentElement(node)!;
-  }
   try {
     if (typeof maskTextClass === 'string') {
       if (checkAncestors) {
@@ -305,6 +298,34 @@ export function needMaskingText(
     //
   }
   return false;
+}
+
+export function needMaskingText(
+  node: Node,
+  maskTextClass: string | RegExp,
+  maskTextSelector: string | null,
+  checkAncestors: boolean,
+): boolean {
+  let el: Element;
+  if (isElement(node)) {
+    el = node;
+    if (!dom.childNodes(el).length) {
+      // optimisation: we can avoid any of the below checks on leaf elements
+      // as masking is applied to child text nodes only
+      return false;
+    }
+  } else if (dom.parentElement(node) === null) {
+    // should warn? maybe a text node isn't attached to a parent node yet?
+    return false;
+  } else {
+    el = dom.parentElement(node)!;
+  }
+  return elementMatchesTextMask(
+    el,
+    maskTextClass,
+    maskTextSelector,
+    checkAncestors,
+  );
 }
 
 // https://stackoverflow.com/a/36155560
@@ -393,6 +414,8 @@ function serializeNode(
     mirror: Mirror;
     blockClass: string | RegExp;
     blockSelector: string | null;
+    maskTextClass: string | RegExp;
+    maskTextSelector: string | null;
     needsMask: boolean;
     inlineStylesheet: boolean;
     maskInputOptions: MaskInputOptions;
@@ -414,6 +437,8 @@ function serializeNode(
     mirror,
     blockClass,
     blockSelector,
+    maskTextClass,
+    maskTextSelector,
     needsMask,
     inlineStylesheet,
     maskInputOptions = {},
@@ -455,6 +480,10 @@ function serializeNode(
         doc,
         blockClass,
         blockSelector,
+        maskTextClass,
+        maskTextSelector,
+        needsMask,
+        maskTextFn,
         inlineStylesheet,
         maskInputOptions,
         maskInputFn,
@@ -527,9 +556,7 @@ function serializeTextNode(
     }
   }
   if (!isStyle && !isScript && textContent && needsMask) {
-    textContent = maskTextFn
-      ? maskTextFn(textContent, dom.parentElement(n))
-      : textContent.replace(/[\S]/g, '*');
+    textContent = maskTextValue(textContent, dom.parentElement(n), maskTextFn);
   }
 
   return {
@@ -545,6 +572,10 @@ function serializeElementNode(
     doc: Document;
     blockClass: string | RegExp;
     blockSelector: string | null;
+    maskTextClass: string | RegExp;
+    maskTextSelector: string | null;
+    needsMask: boolean;
+    maskTextFn: MaskTextFn | undefined;
     inlineStylesheet: boolean;
     maskInputOptions: MaskInputOptions;
     maskInputFn: MaskInputFn | undefined;
@@ -563,6 +594,10 @@ function serializeElementNode(
     doc,
     blockClass,
     blockSelector,
+    maskTextClass,
+    maskTextSelector,
+    needsMask,
+    maskTextFn,
     inlineStylesheet,
     maskInputOptions = {},
     maskInputFn,
@@ -577,15 +612,33 @@ function serializeElementNode(
   const tagName = getValidTagName(n);
   let attributes: attributes = {};
   const len = n.attributes.length;
+  // decided lazily, at most once, when the first text-bearing attribute is seen
+  let needsAttributeMask: boolean | undefined;
   for (let i = 0; i < len; i++) {
     const attr = n.attributes[i];
     if (!ignoreAttribute(tagName, attr.name, attr.value)) {
-      attributes[attr.name] = transformAttribute(
+      let attributeValue = transformAttribute(
         doc,
         tagName,
         toLowerCase(attr.name),
         attr.value,
       );
+      if (
+        !needBlock &&
+        attributeValue &&
+        isMaskedTextAttribute(tagName, attr.name)
+      ) {
+        // leaf elements are not covered by `needsMask`, so match the element itself
+        if (needsAttributeMask === undefined) {
+          needsAttributeMask =
+            needsMask ||
+            elementMatchesTextMask(n, maskTextClass, maskTextSelector, true);
+        }
+        if (needsAttributeMask) {
+          attributeValue = maskTextValue(attributeValue, n, maskTextFn);
+        }
+      }
+      attributes[attr.name] = attributeValue;
     }
   }
   // remote css
@@ -989,6 +1042,8 @@ export function serializeNodeWithId(
     mirror,
     blockClass,
     blockSelector,
+    maskTextClass,
+    maskTextSelector,
     needsMask,
     inlineStylesheet,
     maskInputOptions,

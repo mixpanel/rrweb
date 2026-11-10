@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>mask text attributes</title>
+  </head>
+  <body>
+    <div id="masked" class="secret">
+      <button id="plain" aria-label="secret label" title="secret title" style="color: red">Click</button>
+      <img id="img" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="secret alt" />
+      <input id="field" type="text" aria-label="field secret" placeholder="plain placeholder" />
+      <button id="icon" aria-label="icon only"></button>
+      <select id="select"><option id="option" label="secret option">1</option></select>
+      <button id="unmasked" class="unmask" aria-label="keep me"></button>
+      <div id="blocked" class="rr-block" aria-label="blocked secret" style="width: 50px; height: 50px;"></div>
+    </div>
+    <button id="outside" aria-label="outside label"></button>
+  </body>
+</html>

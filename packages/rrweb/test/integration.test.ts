@@ -18,6 +18,8 @@ import {
   eventWithTime,
   NodeType,
   EventType,
+  IncrementalSource,
+  mutationData,
   serializedNodeWithId,
 } from '@rrweb/types';
 import { visitSnapshot } from 'rrweb-snapshot';
@@ -657,6 +659,207 @@ describe('record integration tests', function (this: ISuite) {
       },
     );
     expect(foundMaskedPlaceholder).toBe(true);
+  });
+
+  describe('text attribute masking', () => {
+    const maskTextFn = (text: string, element: HTMLElement | null) =>
+      element && element.closest('.unmask') ? text : text.replace(/[\S]/g, '*');
+
+    const recordOptions = {
+      maskTextSelector: '.secret',
+      maskTextFn,
+    } as unknown as recordOptions<eventWithTime>;
+
+    const byId = (id: string) => (node: serializedNodeWithId) =>
+      node.type === NodeType.Element && node.attributes.id === id;
+
+    const findElement = (
+      events: eventWithTime[],
+      predicate: (node: serializedNodeWithId) => boolean,
+    ) => {
+      const fullSnapshot = events.find(
+        (e) => e.type === EventType.FullSnapshot,
+      );
+      let found: serializedNodeWithId | undefined;
+      visitSnapshot(
+        (
+          fullSnapshot as eventWithTime & {
+            data: { node: serializedNodeWithId };
+          }
+        ).data.node,
+        (node) => {
+          if (!found && predicate(node)) found = node;
+        },
+      );
+      return found as
+        | (serializedNodeWithId & { attributes: Record<string, unknown> })
+        | undefined;
+    };
+
+    const load = async (options?: recordOptions<eventWithTime>) => {
+      const page: puppeteer.Page = await browser.newPage();
+      await page.goto('about:blank');
+      await page.setContent(getHtml.call(this, 'mask-attribute.html', options));
+      return page;
+    };
+
+    const getEvents = async (page: puppeteer.Page) =>
+      (await page.evaluate('window.snapshots')) as eventWithTime[];
+
+    it('masks text attributes of masked elements, including leaf elements, in the full snapshot', async () => {
+      const page = await load(recordOptions);
+      const events = await getEvents(page);
+
+      const plain = findElement(events, byId('plain'))!;
+      expect(plain.attributes['aria-label']).toBe('****** *****');
+      expect(plain.attributes.title).toBe('****** *****');
+      expect(plain.attributes.style).toBe('color: red');
+
+      expect(findElement(events, byId('img'))!.attributes.alt).toBe(
+        '****** ***',
+      );
+      const field = findElement(events, byId('field'))!;
+      expect(field.attributes['aria-label']).toBe('***** ******');
+      // placeholder follows the input masking path, not text masking
+      expect(field.attributes.placeholder).toBe('plain placeholder');
+      expect(findElement(events, byId('icon'))!.attributes['aria-label']).toBe(
+        '**** ****',
+      );
+
+      // elements outside the masked subtree are unaffected
+      expect(
+        findElement(events, byId('outside'))!.attributes['aria-label'],
+      ).toBe('outside label');
+      await page.close();
+    });
+
+    it('lets maskTextFn unmask attributes (unmask precedence)', async () => {
+      const page = await load(recordOptions);
+      const events = await getEvents(page);
+      expect(
+        findElement(events, byId('unmasked'))!.attributes['aria-label'],
+      ).toBe('keep me');
+      await page.close();
+    });
+
+    it('does not record attributes of blocked elements', async () => {
+      const page = await load(recordOptions);
+      const events = await getEvents(page);
+      const blocked = findElement(
+        events,
+        (n) => n.type === NodeType.Element && n.attributes.class === 'rr-block',
+      )!;
+      expect(blocked.attributes['aria-label']).toBeUndefined();
+      await page.close();
+    });
+
+    it('uses default text masking when maskTextFn is not provided', async () => {
+      const page = await load({
+        maskTextSelector: '.secret',
+      } as recordOptions<eventWithTime>);
+      const events = await getEvents(page);
+      expect(findElement(events, byId('img'))!.attributes.alt).toBe(
+        '****** ***',
+      );
+      expect(
+        findElement(events, byId('unmasked'))!.attributes['aria-label'],
+      ).toBe('**** **');
+      await page.close();
+    });
+
+    it('does not mask when no mask class or selector matches', async () => {
+      const page = await load({
+        maskTextSelector: '.does-not-match',
+        maskTextFn,
+      } as unknown as recordOptions<eventWithTime>);
+      const events = await getEvents(page);
+      expect(findElement(events, byId('plain'))!.attributes['aria-label']).toBe(
+        'secret label',
+      );
+      expect(findElement(events, byId('img'))!.attributes.alt).toBe(
+        'secret alt',
+      );
+      expect(findElement(events, byId('icon'))!.attributes['aria-label']).toBe(
+        'icon only',
+      );
+      await page.close();
+    });
+
+    it('masks text attributes everywhere with the mixpanel-js config (mask all text, unmask via maskTextFn)', async () => {
+      const page = await load({
+        maskTextSelector: '*',
+        maskTextFn,
+      } as unknown as recordOptions<eventWithTime>);
+      const events = await getEvents(page);
+      expect(
+        findElement(events, byId('outside'))!.attributes['aria-label'],
+      ).toBe('******* *****');
+      expect(findElement(events, byId('img'))!.attributes.alt).toBe(
+        '****** ***',
+      );
+      expect(findElement(events, byId('option'))!.attributes.label).toBe(
+        '****** ******',
+      );
+      expect(
+        findElement(events, byId('unmasked'))!.attributes['aria-label'],
+      ).toBe('keep me');
+
+      await page.evaluate(() => {
+        document.getElementById('outside')!.setAttribute('title', 'new title');
+      });
+      await waitForRAF(page);
+      const changes = (await getEvents(page))
+        .filter(
+          (e) =>
+            e.type === EventType.IncrementalSnapshot &&
+            e.data.source === IncrementalSource.Mutation,
+        )
+        .flatMap((e) => (e.data as mutationData).attributes);
+      const outsideId = findElement(events, byId('outside'))!.id;
+      expect(changes.find((c) => c.id === outsideId)!.attributes.title).toBe(
+        '*** *****',
+      );
+      await page.close();
+    });
+
+    it('masks text attribute mutations, leaving style and unmatched elements untouched', async () => {
+      const page = await load(recordOptions);
+      await page.evaluate(() => {
+        const button = document.getElementById('plain')!;
+        button.setAttribute('aria-label', 'new secret');
+        button.style.color = 'blue';
+        document.getElementById('img')!.setAttribute('alt', 'new alt');
+        document.getElementById('icon')!.setAttribute('ARIA-LABEL', 'new icon');
+        document.getElementById('unmasked')!.setAttribute('title', 'shown');
+        document.getElementById('blocked')!.setAttribute('aria-label', 'x');
+        document.getElementById('outside')!.setAttribute('title', 'outside');
+      });
+      await waitForRAF(page);
+      const events = await getEvents(page);
+      const changes = events
+        .filter(
+          (e) =>
+            e.type === EventType.IncrementalSnapshot &&
+            e.data.source === IncrementalSource.Mutation,
+        )
+        .flatMap((e) => (e.data as mutationData).attributes);
+      const get = (id: string) =>
+        changes.find((c) => c.id === findElement(events, byId(id))?.id)
+          ?.attributes;
+      const blockedId = findElement(
+        events,
+        (n) => n.type === NodeType.Element && n.attributes.class === 'rr-block',
+      )!.id;
+
+      expect(get('plain')!['aria-label']).toBe('*** ******');
+      expect(get('plain')!.style).toBeDefined();
+      expect(get('img')!.alt).toBe('*** ***');
+      expect(get('icon')!['aria-label']).toBe('*** ****');
+      expect(get('unmasked')!.title).toBe('shown');
+      expect(changes.find((c) => c.id === blockedId)).toBeUndefined();
+      expect(get('outside')!.title).toBe('outside');
+      await page.close();
+    });
   });
 
   it('should record input userTriggered values if userTriggeredOnInput is enabled', async () => {

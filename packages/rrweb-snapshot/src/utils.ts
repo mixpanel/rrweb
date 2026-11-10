@@ -2,6 +2,7 @@ import type {
   idNodeMap,
   MaskInputFn,
   MaskInputOptions,
+  MaskTextFn,
   nodeMetaMap,
 } from './types';
 
@@ -246,6 +247,49 @@ export class Mirror implements IMirror<Node> {
 
 export function createMirror(): Mirror {
   return new Mirror();
+}
+
+/**
+ * Text-bearing attributes masked through the text masking path
+ * (maskTextClass / maskTextSelector / maskTextFn).
+ * `placeholder` is handled by the input masking path instead.
+ */
+export const MASKED_TEXT_ATTRIBUTES = new Set([
+  'aria-label',
+  'aria-description',
+  'aria-valuetext',
+  'aria-placeholder',
+  'aria-roledescription',
+  'title',
+  'alt',
+  'label',
+]);
+
+export function isMaskedTextAttribute(
+  tagName: string,
+  attributeName: string,
+): boolean {
+  const name = attributeName.toLowerCase();
+  if (!MASKED_TEXT_ATTRIBUTES.has(name)) {
+    return false;
+  }
+  // a stylesheet's title names its stylesheet set, so masking it can change which styles apply
+  if (name === 'title') {
+    const tag = tagName.toLowerCase();
+    return tag !== 'link' && tag !== 'style';
+  }
+  return true;
+}
+
+/**
+ * Mask a string the same way text nodes are masked.
+ */
+export function maskTextValue(
+  value: string,
+  element: HTMLElement | null,
+  maskTextFn: MaskTextFn | undefined,
+): string {
+  return maskTextFn ? maskTextFn(value, element) : value.replace(/[\S]/g, '*');
 }
 
 export function maskInputValue({

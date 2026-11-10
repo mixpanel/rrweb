@@ -2,10 +2,11 @@
  * @vitest-environment jsdom
  */
 import { JSDOM } from 'jsdom';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import snapshot, {
   _isBlockedElement,
+  needMaskingText,
   serializeNodeWithId,
 } from '../src/snapshot';
 import { elementNode, serializedNodeWithId } from '../src/types';
@@ -251,5 +252,121 @@ describe('jsdom snapshot', () => {
     expect(sn).toMatchObject({
       type: 0,
     });
+  });
+});
+
+describe('text attribute masking', () => {
+  const serializeWith = (
+    html: string,
+    options: {
+      maskTextClass?: string;
+      maskTextFn?: (text: string, element: HTMLElement | null) => string;
+    } = {},
+  ) => {
+    const dom = new JSDOM(`<!DOCTYPE html><body>${html}</body>`);
+    const doc = dom.window.document;
+    return serializeNodeWithId(doc.body.firstElementChild!, {
+      doc,
+      mirror: new Mirror(),
+      blockClass: 'blockblock',
+      blockSelector: null,
+      maskTextClass: options.maskTextClass ?? 'maskmask',
+      maskTextSelector: null,
+      skipChild: true,
+      inlineStylesheet: true,
+      maskTextFn: options.maskTextFn,
+      maskInputFn: undefined,
+      slimDOMOptions: {},
+    }) as elementNode & { attributes: Record<string, unknown> };
+  };
+
+  it('masks listed attributes on leaf elements with the default mask', () => {
+    const node = serializeWith(
+      '<img class="maskmask" alt="secret" title="t" />',
+    );
+    expect(node.attributes.alt).toBe('******');
+    expect(node.attributes.title).toBe('*');
+  });
+
+  it('matches attribute names case-insensitively', () => {
+    const node = serializeWith(
+      '<button class="maskmask" ARIA-LABEL="secret"></button>',
+    );
+    expect(node.attributes['aria-label']).toBe('******');
+  });
+
+  it('uses maskTextFn with the element', () => {
+    const maskTextFn = vi.fn((text: string) => `[${text}]`);
+    const node = serializeWith(
+      '<input class="maskmask" aria-label="secret" />',
+      { maskTextFn },
+    );
+    expect(node.attributes['aria-label']).toBe('[secret]');
+    expect(maskTextFn.mock.calls[0][1]!.tagName).toBe('INPUT');
+  });
+
+  it('masks when an ancestor matches', () => {
+    const dom = new JSDOM(
+      '<!DOCTYPE html><body><div class="maskmask"><img alt="secret" /></div></body>',
+    );
+    const doc = dom.window.document;
+    const node = serializeNodeWithId(doc.querySelector('img')!, {
+      doc,
+      mirror: new Mirror(),
+      blockClass: 'blockblock',
+      blockSelector: null,
+      maskTextClass: 'maskmask',
+      maskTextSelector: null,
+      skipChild: true,
+      inlineStylesheet: true,
+      maskTextFn: undefined,
+      maskInputFn: undefined,
+      slimDOMOptions: {},
+    }) as elementNode & { attributes: Record<string, unknown> };
+    expect(node.attributes.alt).toBe('******');
+  });
+
+  it('does not mask unmatched elements, style, value or placeholder', () => {
+    const plain = serializeWith('<img alt="secret" />');
+    expect(plain.attributes.alt).toBe('secret');
+    const masked = serializeWith(
+      '<input class="maskmask" style="color: red" value="v" placeholder="p" />',
+    );
+    expect(masked.attributes.style).toBe('color: red');
+    expect(masked.attributes.value).toBe('v');
+    expect(masked.attributes.placeholder).toBe('p');
+  });
+
+  it('masks the label attribute', () => {
+    const node = serializeWith(
+      '<optgroup class="maskmask" label="secret"></optgroup>',
+    );
+    expect(node.attributes.label).toBe('******');
+  });
+
+  it('does not mask the title of stylesheets', () => {
+    const style = serializeWith(
+      '<style class="maskmask" title="dark"></style>',
+    );
+    expect(style.attributes.title).toBe('dark');
+    const link = serializeWith(
+      '<link class="maskmask" rel="stylesheet" title="dark" />',
+    );
+    expect(link.attributes.title).toBe('dark');
+  });
+
+  it('does not record attributes of blocked elements', () => {
+    const node = serializeWith(
+      '<div class="blockblock maskmask" aria-label="secret"></div>',
+    );
+    expect(node.attributes['aria-label']).toBeUndefined();
+  });
+
+  it('needMaskingText still skips leaf elements', () => {
+    const doc = new JSDOM('<body><i class="maskmask"></i></body>').window
+      .document;
+    expect(
+      needMaskingText(doc.querySelector('i')!, 'maskmask', null, true),
+    ).toBe(false);
   });
 });
